@@ -1,0 +1,92 @@
+[project]
+name = "mcp-claude-memories"
+version = "0.1.0"
+description = "Memory service for Claude using file watching, Mem0 SaaS, and MCP"
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "mcp",
+    "mem0ai",
+    "watchdog",
+    "pydantic-settings",
+    "python-dotenv",
+]
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
+
+[project.scripts]
+mcp-claude-memories = "mcp_claude_memories.mcp_server:main"
+
+[dependency-groups]
+dev = [
+    "pytest",
+    "pytest-asyncio",
+    "pytest-cov",
+    "pytest-mock",
+]
+lint = [
+    "ruff",
+    "basedpyright"
+]
+
+[tool.ruff]
+preview = true
+fix = true
+unsafe-fixes = true
+cache-dir = "~/.cache/ruff"
+target-version = "py313"
+output-format = "grouped"
+
+[tool.ruff.lint]
+preview = true
+select = ["E4", "E7", "E9", "F", "B", "C4", "SIM", "UP", "S", "N", "I", "Q"]
+ignore = []
+
+# Allow fix for all enabled rules (when `--fix`) is provided.
+fixable = ["ALL"]
+unfixable = []
+
+# Allow unused variables when underscore-prefixed.
+dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
+
+# Ignore test-specific warnings
+[tool.ruff.lint.per-file-ignores]
+"tests/*" = ["S101", "S404", "S607", "S603", "S501"]
+
+[tool.ruff.format]
+preview = true
+
+# Like Black, respect magic trailing commas.
+skip-magic-trailing-comma = false
+
+# Enable auto-formatting of code examples in docstrings.
+docstring-code-format = true
+
+[tool.pytest.ini_options]
+minversion = "6.0"
+addopts = [
+    "-ra",
+    "--strict-markers",
+    "--strict-config",
+    "--cov=mcp_claude_memories",
+    "--cov-report=term-missing",
+    "--cov-report=html:htmlcov",
+    "--cov-report=xml",
+    "--cov-fail-under=85",
+    "--disable-warnings",
+]
+testpaths = ["tests"]
+markers = [
+    "asyncio: mark test as async",
+    "slow: mark test as slow",
+    "integration: mark test as integration test",
+    "unit: mark test as unit test",
+    "security: mark test as security-related",
+]
+filterwarnings = [
+    "ignore::UserWarning",
+    "ignore::DeprecationWarning",
+]
+asyncio_mode = "auto"
