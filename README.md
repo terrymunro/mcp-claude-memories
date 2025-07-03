@@ -1,5 +1,11 @@
 # MCP Claude Memories
 
+> **⚠️ EXPERIMENTAL PROJECT WARNING**
+> 
+> This is an experimental project and successor to [mcp-mitm-mem0](https://github.com/terrymunro/mcp-mitm-mem0). 
+> This software is in early development and may not be fully functional yet. Expect bugs, breaking changes, and incomplete features.
+> Use at your own risk and expect potential issues. Feedback and contributions are welcome!
+
 A smart memory system for Claude Code that automatically watches your conversation files and provides context-aware memory retrieval through MCP (Model Context Protocol).
 
 ## Overview
