@@ -296,5 +296,6 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## Acknowledgments
 
 - [Mem0](https://mem0.ai) for the intelligent memory storage
-- [Claude Code](https://claude.ai/code) for the MCP framework
+- [Anthropic](https://www.anthropic.com) for the [Model Context Protocol (MCP)](https://modelcontextprotocol.io)
+- [Claude Code](https://claude.ai/code) for providing the platform this integrates with
 - [FastMCP](https://github.com/jlowin/fastmcp) for the MCP server implementation
