@@ -112,6 +112,14 @@ async def test_process_existing_files(
     message_counts = [call["message_count"] for call in call_data]
     assert sorted(message_counts) == [1, 2]
 
+    # Check that messages are in the correct format for memory service
+    for call in calls:
+        messages = call[1]["messages"]
+        for msg in messages:
+            assert "role" in msg
+            assert "content" in msg
+            assert msg["role"] in ["human", "assistant"]
+
 
 @pytest.mark.asyncio
 async def test_process_file_changes_new_file(

@@ -280,3 +280,61 @@ def test_get_file_line_count_not_found(parser):
     result = parser.get_file_line_count(Path("/nonexistent/file.jsonl"))
 
     assert result == 0
+
+
+def test_extract_conversation_messages(parser):
+    """Test extracting conversation messages in memory service format."""
+    jsonl_data = [
+        {
+            "role": "user",
+            "content": "Hello world",
+            "timestamp": "2025-07-02T10:00:00Z",
+            "_line_number": 0,
+        },
+        {
+            "role": "assistant",
+            "content": "Hi there!",
+            "timestamp": "2025-07-02T10:00:01Z",
+            "_line_number": 1,
+        },
+        {"role": "system", "content": "System message", "_line_number": 2},
+        {
+            "role": "user",
+            "content": "",  # Empty content should be skipped
+            "_line_number": 3,
+        },
+    ]
+
+    result = parser.extract_conversation_messages(jsonl_data)
+
+    # Should extract only user and assistant messages with content
+    assert len(result) == 2
+
+    # Check format for memory service
+    assert result[0]["role"] == "human"  # user mapped to human
+    assert result[0]["content"] == "Hello world"
+
+    assert result[1]["role"] == "assistant"  # assistant stays assistant
+    assert result[1]["content"] == "Hi there!"
+
+    # Should not include timestamps or line numbers in memory format
+    assert "timestamp" not in result[0]
+    assert "line_number" not in result[0]
+
+
+def test_extract_conversation_messages_empty_input(parser):
+    """Test extracting conversation messages with empty input."""
+    result = parser.extract_conversation_messages([])
+    assert result == []
+
+
+def test_extract_conversation_messages_no_valid_messages(parser):
+    """Test extracting conversation messages with no valid messages."""
+    jsonl_data = [
+        {"role": "system", "content": "System message"},
+        {"role": "user", "content": ""},  # Empty content
+        {"invalid": "entry"},  # Invalid entry
+    ]
+
+    result = parser.extract_conversation_messages(jsonl_data)
+    assert result == []

@@ -164,7 +164,7 @@ class ConversationWatcher:
                 return
 
             # Extract messages
-            messages = self.parser.extract_messages(jsonl_data)
+            messages = self.parser.extract_conversation_messages(jsonl_data)
 
             if not messages:
                 logger.debug(f"No new messages found in {file_path}")

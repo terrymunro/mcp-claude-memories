@@ -32,7 +32,19 @@ def mock_reflection_agent():
 @pytest.fixture
 def hook_handler(mock_memory_service, mock_reflection_agent):
     """Hook handler instance for testing."""
-    return HookHandler(mock_memory_service, mock_reflection_agent)
+    # Mock the settings to avoid config validation issues
+    from mcp_claude_memories.config import Settings
+    from pathlib import Path
+    import tempfile
+    
+    with patch("mcp_claude_memories.hook_handler.get_settings") as mock_settings:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_settings.return_value = Settings(
+                mem0_api_key="test_api_key_1234567890",
+                claude_config_dir=Path(temp_dir),
+                default_user_id="test_user",
+            )
+            return HookHandler(mock_memory_service, mock_reflection_agent)
 
 
 @pytest.fixture
