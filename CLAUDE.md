@@ -101,11 +101,11 @@ This system provides intelligent memory for Claude Code through automatic conver
 ### Conversation File Format
 The parser expects JSONL files with this structure:
 ```json
-{"role": "human", "content": "message text", "timestamp": "2025-07-02T10:00:00Z"}
+{"role": "user", "content": "message text", "timestamp": "2025-07-02T10:00:00Z"}
 {"role": "assistant", "content": "response text", "timestamp": "2025-07-02T10:00:01Z"}
 ```
 
-**Important**: Tests must use `role` field (not `type`) and include timestamps for proper message extraction.
+**Important**: Tests must use `role` field (not `type`) and include timestamps for proper message extraction. The parser maps `"user"` to `"human"` internally for memory service compatibility.
 
 ### File Watching Mechanics
 - ConversationWatcher uses recursive=False watching on project directories
