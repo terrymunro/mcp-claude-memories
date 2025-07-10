@@ -185,15 +185,15 @@ async def test_file_watcher_integration(
 
     # Create initial conversation file before starting watcher
     # This tests the _process_existing_files functionality
-    # Use the correct format expected by the conversation parser
+    # Use the correct Claude Code JSONL format
     conversation_messages = [
         {
-            "role": "human",
+            "type": "user",
             "content": "I'm building a React app with TypeScript and having issues with component rendering",
             "timestamp": "2025-07-02T10:00:00Z",
         },
         {
-            "role": "assistant",
+            "type": "assistant",
             "content": "For React component rendering issues, first check the console for errors. Common causes include incorrect props, missing dependencies in useEffect, or state update issues.",
             "timestamp": "2025-07-02T10:00:01Z",
         },
@@ -253,12 +253,12 @@ async def test_file_watcher_integration(
         # Add more messages (should trigger incremental processing)
         additional_messages = [
             {
-                "role": "human",
+                "type": "user",
                 "content": "The component renders initially but doesn't update when props change",
                 "timestamp": "2025-07-02T10:01:00Z",
             },
             {
-                "role": "assistant",
+                "type": "assistant",
                 "content": "This sounds like a React re-rendering issue. Make sure your component is properly handling prop changes.",
                 "timestamp": "2025-07-02T10:01:01Z",
             },
@@ -476,25 +476,25 @@ async def test_complete_system_integration(
     project_dir = temp_config_dir / "projects" / "test_project"
     conv_file = project_dir / "conversation_001.jsonl"
 
-    # 2. Create conversation file before starting watcher (using correct format)
+    # 2. Create conversation file before starting watcher (using correct Claude Code format)
     conversation_messages = [
         {
-            "role": "human",
+            "type": "user",
             "content": "I'm building a React app with TypeScript and having issues with component rendering",
             "timestamp": "2025-07-02T10:00:00Z",
         },
         {
-            "role": "assistant",
+            "type": "assistant",
             "content": "For React component rendering issues, first check the console for errors. Common causes include incorrect props, missing dependencies in useEffect, or state update issues.",
             "timestamp": "2025-07-02T10:00:01Z",
         },
         {
-            "role": "human",
+            "type": "user",
             "content": "The component renders initially but doesn't update when props change",
             "timestamp": "2025-07-02T10:01:00Z",
         },
         {
-            "role": "assistant",
+            "type": "assistant",
             "content": "This sounds like a React re-rendering issue. Make sure your component is properly handling prop changes. You might need to add props to useEffect dependencies or use useMemo for expensive calculations.",
             "timestamp": "2025-07-02T10:01:01Z",
         },
