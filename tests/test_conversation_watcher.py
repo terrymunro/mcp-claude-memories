@@ -112,6 +112,14 @@ async def test_process_existing_files(
     message_counts = [call["message_count"] for call in call_data]
     assert sorted(message_counts) == [1, 2]
 
+    # Check that messages are in the correct format for memory service
+    for call in calls:
+        messages = call[1]["messages"]
+        for msg in messages:
+            assert "role" in msg
+            assert "content" in msg
+            assert msg["role"] in ["human", "assistant"]
+
 
 @pytest.mark.asyncio
 async def test_process_file_changes_new_file(
@@ -333,3 +341,96 @@ def test_file_handler_on_modified_non_matching():
     handler.on_modified(event)
 
     # No processing should occur
+
+
+@pytest.mark.asyncio
+async def test_process_existing_files_with_type_field(
+    conversation_watcher, temp_claude_config, mock_memory_service
+):
+    """Test processing existing conversation files using Claude's actual 'type' field format."""
+    # Create test conversation files using correct Claude Code format
+    project1_dir = temp_claude_config / "projects" / "project1"
+    project2_dir = temp_claude_config / "projects" / "project2"
+
+    conv1_content = [
+        '{"type": "user", "content": "Hello", "timestamp": "2025-07-02T10:00:00Z"}',
+        '{"type": "assistant", "content": "Hi there!", "timestamp": "2025-07-02T10:00:01Z"}',
+    ]
+
+    conv2_content = [
+        '{"type": "user", "content": "How are you?", "timestamp": "2025-07-02T10:01:00Z"}'
+    ]
+
+    create_conversation_file(project1_dir, "conversation_abc.jsonl", conv1_content)
+    create_conversation_file(project2_dir, "conversation_def.jsonl", conv2_content)
+
+    # Manually populate watched directories for this test
+    conversation_watcher._watched_dirs.add(project1_dir)
+    conversation_watcher._watched_dirs.add(project2_dir)
+
+    # Process existing files
+    await conversation_watcher._process_existing_files()
+
+    # Verify store_conversation was called for both files
+    assert mock_memory_service.store_conversation.call_count == 2
+
+    # Collect all the calls
+    calls = mock_memory_service.store_conversation.call_args_list
+
+    # Extract project names and message counts from calls
+    call_data = []
+    for call in calls:
+        call_data.append({
+            "user_id": call[1]["user_id"],
+            "project_name": call[1]["project_name"],
+            "message_count": len(call[1]["messages"]),
+        })
+
+    # Check that both projects were processed
+    project_names = {call["project_name"] for call in call_data}
+    assert project_names == {"project1", "project2"}
+
+    # Check that all calls have correct user_id
+    assert all(call["user_id"] == "test_user" for call in call_data)
+
+    # Check message counts (project1 has 2 messages, project2 has 1)
+    message_counts = [call["message_count"] for call in call_data]
+    assert sorted(message_counts) == [1, 2]
+
+    # Check that messages are in the correct format for memory service
+    for call in calls:
+        messages = call[1]["messages"]
+        for msg in messages:
+            assert "role" in msg
+            assert "content" in msg
+            assert msg["role"] in ["human", "assistant"]
+
+
+@pytest.mark.asyncio
+async def test_process_file_changes_with_type_field(
+    conversation_watcher, temp_claude_config, mock_memory_service
+):
+    """Test processing file changes using Claude's actual 'type' field format."""
+    project_dir = temp_claude_config / "projects" / "project1"
+    file_path = create_conversation_file(
+        project_dir,
+        "conversation_type.jsonl",
+        [
+            '{"type": "user", "content": "Type field test", "timestamp": "2025-07-02T12:00:00Z"}',
+            '{"type": "assistant", "content": "Works correctly!", "timestamp": "2025-07-02T12:00:01Z"}',
+        ],
+    )
+
+    await conversation_watcher._process_file_changes(file_path, is_startup=True)
+
+    # Verify memory storage
+    mock_memory_service.store_conversation.assert_called_once()
+    call_args = mock_memory_service.store_conversation.call_args[1]
+
+    assert call_args["user_id"] == "test_user"
+    assert call_args["project_name"] == "project1"
+    assert len(call_args["messages"]) == 2
+    assert call_args["messages"][0]["content"] == "Type field test"
+    assert call_args["messages"][0]["role"] == "human"  # user mapped to human
+    assert call_args["messages"][1]["content"] == "Works correctly!"
+    assert call_args["messages"][1]["role"] == "assistant"

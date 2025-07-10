@@ -4,7 +4,7 @@ import asyncio
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import AsyncMock, Mock
+from unittest.mock import AsyncMock, Mock, patch
 
 import pytest
 
@@ -43,23 +43,27 @@ def sample_conversation_data():
     return [
         {
             "id": "msg1",
-            "type": "human",
+            "role": "user",
             "content": "I'm building a React app with TypeScript and having issues with component rendering",
+            "timestamp": "2025-07-02T10:00:00Z",
         },
         {
             "id": "msg2",
-            "type": "assistant",
+            "role": "assistant",
             "content": "For React component rendering issues, first check the console for errors. Common causes include incorrect props, missing dependencies in useEffect, or state update issues.",
+            "timestamp": "2025-07-02T10:00:01Z",
         },
         {
             "id": "msg3",
-            "type": "human",
+            "role": "user",
             "content": "The component renders initially but doesn't update when props change",
+            "timestamp": "2025-07-02T10:01:00Z",
         },
         {
             "id": "msg4",
-            "type": "assistant",
+            "role": "assistant",
             "content": "This sounds like a React re-rendering issue. Make sure your component is properly handling prop changes. You might need to add props to useEffect dependencies or use useMemo for expensive calculations.",
+            "timestamp": "2025-07-02T10:01:01Z",
         },
     ]
 
@@ -181,15 +185,15 @@ async def test_file_watcher_integration(
 
     # Create initial conversation file before starting watcher
     # This tests the _process_existing_files functionality
-    # Use the correct format expected by the conversation parser
+    # Use the correct Claude Code JSONL format
     conversation_messages = [
         {
-            "role": "human",
+            "type": "user",
             "content": "I'm building a React app with TypeScript and having issues with component rendering",
             "timestamp": "2025-07-02T10:00:00Z",
         },
         {
-            "role": "assistant",
+            "type": "assistant",
             "content": "For React component rendering issues, first check the console for errors. Common causes include incorrect props, missing dependencies in useEffect, or state update issues.",
             "timestamp": "2025-07-02T10:00:01Z",
         },
@@ -249,12 +253,12 @@ async def test_file_watcher_integration(
         # Add more messages (should trigger incremental processing)
         additional_messages = [
             {
-                "role": "human",
+                "type": "user",
                 "content": "The component renders initially but doesn't update when props change",
                 "timestamp": "2025-07-02T10:01:00Z",
             },
             {
-                "role": "assistant",
+                "type": "assistant",
                 "content": "This sounds like a React re-rendering issue. Make sure your component is properly handling prop changes.",
                 "timestamp": "2025-07-02T10:01:01Z",
             },
@@ -425,34 +429,42 @@ async def test_hook_handler_integration(mock_memory_service):
 
     # Initialize components
     reflection_agent = ReflectionAgent(mock_memory_service)
-    hook_handler = HookHandler(mock_memory_service, reflection_agent)
+    # Mock the settings for hook handler to avoid config validation
+    with patch("mcp_claude_memories.hook_handler.get_settings") as mock_settings:
+        with tempfile.TemporaryDirectory() as temp_dir:
+            mock_settings.return_value = Settings(
+                mem0_api_key="test_api_key_1234567890",
+                claude_config_dir=Path(temp_dir),
+                default_user_id="test_user",
+            )
+            hook_handler = HookHandler(mock_memory_service, reflection_agent)
 
-    # Test PreToolUse hook for debugging
-    context = {"tool_name": "bash", "arguments": {"command": "npm test react"}}
+            # Test PreToolUse hook for debugging
+            context = {"tool_name": "bash", "arguments": {"command": "npm test react"}}
 
-    result = await hook_handler.handle_hook_event("PreToolUse", context, "test_user")
-    assert result is not None
-    assert "💭" in result  # Should provide memory hint
+            result = await hook_handler.handle_hook_event("PreToolUse", context, "test_user")
+            assert result is not None
+            assert "💭" in result  # Should provide memory hint
 
-    # Test PostToolUse hook for error
-    context = {"tool_name": "bash", "result": "Error: Test failed with TypeError"}
+            # Test PostToolUse hook for error
+            context = {"tool_name": "bash", "result": "Error: Test failed with TypeError"}
 
-    result = await hook_handler.handle_hook_event("PostToolUse", context, "test_user")
-    assert result is not None
-    assert "💭" in result  # Should provide troubleshooting hint
+            result = await hook_handler.handle_hook_event("PostToolUse", context, "test_user")
+            assert result is not None
+            assert "💭" in result  # Should provide troubleshooting hint
 
-    # Test Notification hook for session start
-    mock_memory_service.get_memories = AsyncMock(return_value=memories)
+            # Test Notification hook for session start
+            mock_memory_service.get_memories = AsyncMock(return_value=memories)
 
-    async def mock_analyze_patterns(memories_list, limit):
-        return {"topics": {"react": 3, "typescript": 2}}
+            async def mock_analyze_patterns(memories_list, limit):
+                return {"topics": {"react": 3, "typescript": 2}}
 
-    reflection_agent.analyze_patterns = AsyncMock(side_effect=mock_analyze_patterns)
+            reflection_agent.analyze_patterns = AsyncMock(side_effect=mock_analyze_patterns)
 
-    context = {"type": "session_start"}
-    result = await hook_handler.handle_hook_event("Notification", context, "test_user")
-    assert result is not None
-    assert "👋 Welcome back!" in result
+            context = {"type": "session_start"}
+            result = await hook_handler.handle_hook_event("Notification", context, "test_user")
+            assert result is not None
+            assert "👋 Welcome back!" in result
 
 
 @pytest.mark.asyncio
@@ -464,25 +476,25 @@ async def test_complete_system_integration(
     project_dir = temp_config_dir / "projects" / "test_project"
     conv_file = project_dir / "conversation_001.jsonl"
 
-    # 2. Create conversation file before starting watcher (using correct format)
+    # 2. Create conversation file before starting watcher (using correct Claude Code format)
     conversation_messages = [
         {
-            "role": "human",
+            "type": "user",
             "content": "I'm building a React app with TypeScript and having issues with component rendering",
             "timestamp": "2025-07-02T10:00:00Z",
         },
         {
-            "role": "assistant",
+            "type": "assistant",
             "content": "For React component rendering issues, first check the console for errors. Common causes include incorrect props, missing dependencies in useEffect, or state update issues.",
             "timestamp": "2025-07-02T10:00:01Z",
         },
         {
-            "role": "human",
+            "type": "user",
             "content": "The component renders initially but doesn't update when props change",
             "timestamp": "2025-07-02T10:01:00Z",
         },
         {
-            "role": "assistant",
+            "type": "assistant",
             "content": "This sounds like a React re-rendering issue. Make sure your component is properly handling prop changes. You might need to add props to useEffect dependencies or use useMemo for expensive calculations.",
             "timestamp": "2025-07-02T10:01:01Z",
         },
@@ -526,16 +538,24 @@ async def test_complete_system_integration(
 
         # 5. Test hook integration
         reflection_agent = ReflectionAgent(mock_memory_service)
-        hook_handler = HookHandler(mock_memory_service, reflection_agent)
+        
+        # Mock the settings for hook handler to avoid config validation
+        with patch("mcp_claude_memories.hook_handler.get_settings") as mock_settings:
+            mock_settings.return_value = Settings(
+                mem0_api_key="test_api_key_1234567890",
+                claude_config_dir=temp_config_dir,
+                default_user_id="test_user",
+            )
+            hook_handler = HookHandler(mock_memory_service, reflection_agent)
 
-        # Simulate hook for React debugging
-        hook_context = {
-            "tool_name": "edit",
-            "arguments": {"file_path": "src/Component.tsx"},
-        }
+            # Simulate hook for React debugging
+            hook_context = {
+                "tool_name": "edit",
+                "arguments": {"file_path": "src/Component.tsx"},
+            }
 
-        await hook_handler.handle_hook_event("PreToolUse", hook_context, "test_user")
-        # May or may not return suggestions depending on memory content
+            await hook_handler.handle_hook_event("PreToolUse", hook_context, "test_user")
+            # May or may not return suggestions depending on memory content
 
         # 6. Test reflection analysis
         all_memories = await mock_memory_service.get_memories("test_user")
@@ -607,8 +627,8 @@ async def test_incremental_processing(temp_config_dir, mock_memory_service):
 
     # Start with 2 messages
     initial_messages = [
-        {"id": "msg1", "type": "human", "content": "First message"},
-        {"id": "msg2", "type": "assistant", "content": "First response"},
+        {"id": "msg1", "role": "user", "content": "First message", "timestamp": "2025-07-02T10:00:00Z"},
+        {"id": "msg2", "role": "assistant", "content": "First response", "timestamp": "2025-07-02T10:00:01Z"},
     ]
 
     with open(conv_file, "w") as f:
@@ -627,8 +647,8 @@ async def test_incremental_processing(temp_config_dir, mock_memory_service):
 
     # Add more messages
     additional_messages = [
-        {"id": "msg3", "type": "human", "content": "Second message"},
-        {"id": "msg4", "type": "assistant", "content": "Second response"},
+        {"id": "msg3", "role": "user", "content": "Second message", "timestamp": "2025-07-02T10:01:00Z"},
+        {"id": "msg4", "role": "assistant", "content": "Second response", "timestamp": "2025-07-02T10:01:01Z"},
     ]
 
     with open(conv_file, "a") as f:
