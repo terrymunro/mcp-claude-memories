@@ -72,7 +72,8 @@ class ConversationParser:
             if not self._is_message_entry(entry):
                 continue
 
-            role = entry.get("role")
+            # Get role from either 'type' (Claude format) or 'role' (legacy format)
+            role = entry.get("type") or entry.get("role")
             content = self._extract_content(entry)
 
             if role and content:
@@ -128,15 +129,16 @@ class ConversationParser:
         Returns:
             True if entry contains a message
         """
-        role = entry.get("role")
+        # Check both 'type' (actual Claude format) and 'role' (for backwards compatibility)
+        message_type = entry.get("type") or entry.get("role")
         content = entry.get("content")
 
-        # Must have both role and content
-        if not role or not content:
+        # Must have both type/role and content
+        if not message_type or not content:
             return False
 
         # Only process user and assistant messages for now
-        return role in ["user", "assistant"]
+        return message_type in ["user", "assistant"]
 
     def _extract_content(self, entry: dict) -> str | None:
         """Extract text content from message entry.

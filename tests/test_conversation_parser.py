@@ -338,3 +338,139 @@ def test_extract_conversation_messages_no_valid_messages(parser):
 
     result = parser.extract_conversation_messages(jsonl_data)
     assert result == []
+
+
+def test_extract_conversation_messages_with_type_field(parser):
+    """Test extracting conversation messages using Claude's actual 'type' field format."""
+    jsonl_data = [
+        {
+            "type": "user",
+            "content": "Hello world",
+            "timestamp": "2025-07-02T10:00:00Z",
+            "_line_number": 0,
+        },
+        {
+            "type": "assistant",
+            "content": "Hi there!",
+            "timestamp": "2025-07-02T10:00:01Z",
+            "_line_number": 1,
+        },
+        {"type": "system", "content": "System message", "_line_number": 2},
+        {
+            "type": "summary",
+            "content": "Conversation summary",
+            "_line_number": 3,
+        },
+    ]
+
+    result = parser.extract_conversation_messages(jsonl_data)
+
+    # Should extract only user and assistant messages with content
+    assert len(result) == 2
+
+    # Check format for memory service
+    assert result[0]["role"] == "human"  # user mapped to human
+    assert result[0]["content"] == "Hello world"
+
+    assert result[1]["role"] == "assistant"  # assistant stays assistant
+    assert result[1]["content"] == "Hi there!"
+
+
+def test_extract_messages_with_type_field(parser):
+    """Test extracting messages using Claude's actual 'type' field format."""
+    jsonl_data = [
+        {
+            "type": "user",
+            "content": "Hello",
+            "timestamp": "2025-07-02T10:00:00Z",
+            "_line_number": 0,
+        },
+        {
+            "type": "assistant",
+            "content": "Hi there!",
+            "timestamp": "2025-07-02T10:00:01Z",
+            "_line_number": 1,
+        },
+        {"type": "system", "content": "System message", "_line_number": 2},
+    ]
+
+    result = parser.extract_messages(jsonl_data)
+
+    # Should extract only user and assistant messages
+    assert len(result) == 2
+
+    assert result[0]["role"] == "user"
+    assert result[0]["content"] == "Hello"
+    assert result[0]["line_number"] == 0
+
+    assert result[1]["role"] == "assistant"
+    assert result[1]["content"] == "Hi there!"
+    assert result[1]["line_number"] == 1
+
+
+def test_is_message_entry_with_type_field(parser):
+    """Test message entry validation with 'type' field."""
+    # Valid user message with type field
+    entry1 = {"type": "user", "content": "Hello"}
+    assert parser._is_message_entry(entry1) is True
+
+    # Valid assistant message with type field
+    entry2 = {"type": "assistant", "content": "Hi there!"}
+    assert parser._is_message_entry(entry2) is True
+
+    # System message (should be excluded)
+    entry3 = {"type": "system", "content": "System message"}
+    assert parser._is_message_entry(entry3) is False
+
+    # Summary message (should be excluded)
+    entry4 = {"type": "summary", "content": "Summary"}
+    assert parser._is_message_entry(entry4) is False
+
+    # Missing type
+    entry5 = {"content": "Hello"}
+    assert parser._is_message_entry(entry5) is False
+
+    # Missing content
+    entry6 = {"type": "user"}
+    assert parser._is_message_entry(entry6) is False
+
+
+def test_backwards_compatibility_role_and_type(parser):
+    """Test that parser handles both 'role' and 'type' fields for backwards compatibility."""
+    jsonl_data = [
+        {
+            "role": "user",  # Legacy format
+            "content": "Hello from role field",
+            "timestamp": "2025-07-02T10:00:00Z",
+            "_line_number": 0,
+        },
+        {
+            "type": "assistant",  # Current format
+            "content": "Hi from type field",
+            "timestamp": "2025-07-02T10:00:01Z",
+            "_line_number": 1,
+        },
+        {
+            "type": "user",  # type field takes precedence
+            "role": "assistant",
+            "content": "Type field should win",
+            "timestamp": "2025-07-02T10:00:02Z",
+            "_line_number": 2,
+        },
+    ]
+
+    result = parser.extract_messages(jsonl_data)
+
+    assert len(result) == 3
+
+    # Legacy role field
+    assert result[0]["role"] == "user"
+    assert result[0]["content"] == "Hello from role field"
+
+    # Current type field
+    assert result[1]["role"] == "assistant"
+    assert result[1]["content"] == "Hi from type field"
+
+    # Type field takes precedence over role field
+    assert result[2]["role"] == "user"
+    assert result[2]["content"] == "Type field should win"
